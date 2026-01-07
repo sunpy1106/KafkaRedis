@@ -57,7 +57,7 @@ public class TestBatchCreationDiskBusy {
         logger.warn("   3. 测试完成后记得清理进程和文件\n");
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");  // 真实 Kafka
+        props.put("bootstrap.servers", "localhost:19092");  // 真实 Kafka
 
         // 优化配置以增加触发概率
         props.put("acks", "all");  // 需要所有ISR确认（更严格）
