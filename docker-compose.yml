@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Redis服务
+  redis:
+    image: redis:7.2-alpine
+    container_name: kafka-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Redis正常配置，无连接数限制（通过客户端连接池配置触发异常）
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-redis-network
+
+  # Zookeeper服务（Kafka依赖）
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: kafka-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    restart: unless-stopped
+    networks:
+      - kafka-redis-network
+
+  # Kafka服务
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # 强制频繁flush配置（模拟慢盘场景）
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 1  # 每1条消息就flush到磁盘
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 100       # 每100ms就flush一次
+      KAFKA_LOG_FLUSH_SCHEDULER_INTERVAL_MS: 100  # flush调度间隔100ms
+      KAFKA_NUM_RECOVERY_THREADS_PER_DATA_DIR: 1  # 减少并发线程
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - kafka-redis-network
+
+volumes:
+  redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_logs:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  kafka-redis-network:
+    driver: bridge

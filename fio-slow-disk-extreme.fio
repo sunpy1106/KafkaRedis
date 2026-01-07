@@ -1,0 +1,29 @@
+[global]
+# Global settings for all jobs
+ioengine=libaio
+direct=1
+sync=1
+time_based=1
+runtime=300
+group_reporting=1
+
+[slow-disk-extreme]
+# Simulate extreme disk slowness (target: svctm > 1000ms)
+# Strategy: Maximum I/O depth + many jobs + every write is fsync'd
+filename=/var/lib/kafka/data/fio-test-extreme.dat
+size=4G
+bs=4k
+iodepth=128
+numjobs=8
+rw=randwrite
+fsync=1
+# Optional: Force artificial latency targets
+# latency_target=200000
+# latency_window=1000000
+# latency_percentile=99.0
+# This creates:
+# - 8 parallel jobs with 128 queued operations each = 1024 concurrent I/Os
+# - Random writes with fsync after EVERY operation
+# - Extremely high contention on disk I/O subsystem
+# Expected svctm: 1000-5000ms on typical hardware
+# WARNING: This will severely impact disk performance

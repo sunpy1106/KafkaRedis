@@ -1,0 +1,27 @@
+[global]
+# Global settings for all jobs
+ioengine=libaio
+direct=1
+sync=1
+time_based=1
+runtime=300
+group_reporting=1
+
+[slow-disk-hdd]
+# Simulate HDD with high svctm (target: 150-300ms)
+# Strategy: Many random small I/Os with frequent fsync
+filename=/var/lib/kafka/data/fio-test-hdd.dat
+size=2G
+bs=4k
+iodepth=64
+numjobs=4
+rw=randrw
+rwmixread=70
+fsync=5
+# This creates:
+# - Random read/write mix (70% read, 30% write)
+# - 4 parallel jobs competing for disk
+# - 64 operations queued per job (256 total)
+# - Small 4k blocks = many I/O operations
+# - fsync every 5 operations = frequent disk flushes
+# Expected svctm: 150-500ms on typical hardware
